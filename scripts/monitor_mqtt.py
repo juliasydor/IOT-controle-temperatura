@@ -71,8 +71,8 @@ def main():
     except KeyboardInterrupt:
         pass
     finally:
-        cliente.loop_stop()
         cliente.disconnect()
+        cliente.loop_stop()
         arquivo.close()
         print(f"\nLog salvo em {args.saida}")
 

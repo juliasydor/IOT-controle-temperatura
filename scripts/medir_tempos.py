@@ -111,8 +111,8 @@ class Medidor:
         return (t1 - t0) * 1000, json.loads(payload)
 
     def encerrar(self):
-        self.cliente.loop_stop()
         self.cliente.disconnect()
+        self.cliente.loop_stop()
 
 
 def main():

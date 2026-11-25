@@ -38,8 +38,8 @@ def main():
         cliente.publish(t["limite"], f"{args.limite:.1f}").wait_for_publish()
         print(f"Publicado '{args.limite:.1f}' em {t['limite']}")
     time.sleep(0.5)
-    cliente.loop_stop()
     cliente.disconnect()
+    cliente.loop_stop()
 
 
 if __name__ == "__main__":

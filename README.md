@@ -145,7 +145,9 @@ Os relógios do computador e do ESP32 não são sincronizados, por isso todos os
 - **Sensor:** publica um id em `diagnostico/medir`. O ESP32 lê o DHT22 na hora e publica a leitura com o mesmo id.
   `tempo leitura → cliente MQTT ≈ RTT_medição − RTT_ping / 2`
 
-_Os resultados das medições serão publicados na pasta `resultados/`._ <!--RESULTADOS-->
+Resultados obtidos: [`resultados/tabela_tempos.md`](resultados/tabela_tempos.md), [`resultados/medicoes.csv`](resultados/medicoes.csv) e o gráfico abaixo.
+
+![Tempos de resposta](resultados/grafico_tempos.png)
 
 ## 7. Estrutura do repositório
 

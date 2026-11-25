@@ -1,0 +1,9 @@
+num,tipo,dispositivo,acao,rtt_ms,tempo_ms,leitura_ms
+1,Atuador,Relé (ventilador),LIGAR,566.4,286.8,
+2,Atuador,Relé (ventilador),DESLIGAR,517.6,238.0,
+3,Atuador,Relé (ventilador),LIGAR,821.0,541.3,
+4,Atuador,Relé (ventilador),DESLIGAR,587.5,307.8,
+5,Sensor,DHT22,Leitura,867.3,587.7,20
+6,Sensor,DHT22,Leitura,940.6,660.9,20
+7,Sensor,DHT22,Leitura,894.0,614.3,20
+8,Sensor,DHT22,Leitura,982.2,702.5,20

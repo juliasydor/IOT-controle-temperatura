@@ -51,7 +51,10 @@ def grafico_tempos():
         if idx:
             media = statistics.mean(valores[i] for i in idx)
             ax.hlines(media, min(idx) - 0.4, max(idx) + 0.4, colors=cor, linestyles="--", linewidth=1.2)
-            ax.text(max(idx) + 0.45, media, f"média\n{media:.0f} ms", color=cor, va="center", fontsize=8)
+            if tipo == "Sensor":  # últimas barras: rótulo à direita
+                ax.text(max(idx) + 0.45, media, f"média\n{media:.0f} ms", color=cor, va="center", fontsize=8)
+            else:  # primeiras barras: rótulo acima da linha, à esquerda
+                ax.text(min(idx) - 0.4, media + 4, f"média {media:.0f} ms", color=cor, va="bottom", fontsize=8)
 
     ax.set_xticks(range(len(valores)), rotulos, fontsize=8)
     ax.set_ylabel("Tempo de resposta (ms)")

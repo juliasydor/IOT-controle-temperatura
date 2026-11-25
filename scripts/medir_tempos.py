@@ -123,6 +123,8 @@ def main():
     ap.add_argument("--prefixo", default=PREFIXO)
     ap.add_argument("--intervalo", type=float, default=3.0,
                     help="segundos entre medições (>= 2 s por causa do DHT22)")
+    ap.add_argument("--sem-salvar", action="store_true",
+                    help="só mostra os resultados, sem alterar os arquivos de resultados/")
     args = ap.parse_args()
 
     PASTA_RESULTADOS.mkdir(exist_ok=True)
@@ -181,6 +183,21 @@ def main():
 
     m.encerrar()
 
+    md = ["| Núm. medida | Sensor/atuador | Tempo de resposta |", "|---|---|---|"]
+    for n, l in enumerate(linhas, 1):
+        nome = f"{l['dispositivo']} - {l['acao']}"
+        md.append(f"| {n} | {nome} | {l['tempo_ms']:.0f} ms |")
+    for tipo in ("Sensor", "Atuador"):
+        vals = [l["tempo_ms"] for l in linhas if l["tipo"] == tipo]
+        if vals:
+            md.append(f"| Média | {tipo} | {statistics.mean(vals):.0f} ms |")
+    md.append("")
+    md.append(f"RTT médio do ping: {2 * meia_ida:.0f} ms (n = {len(pings)}). "
+              f"Broker: {args.broker}:{args.porta}. Data: {time.strftime('%d/%m/%Y %H:%M')}.")
+    print("\n" + "\n".join(md))
+    if args.sem_salvar:
+        return
+
     # Arquivos de saída
     campos = ["num", "tipo", "dispositivo", "acao", "rtt_ms", "tempo_ms", "leitura_ms"]
     with open(PASTA_RESULTADOS / "medicoes.csv", "w", newline="", encoding="utf-8") as f:
@@ -193,21 +210,7 @@ def main():
         w.writerow(["num", "rtt_ms"])
         for n, p in enumerate(pings, 1):
             w.writerow([n, round(p, 1)])
-
-    md = ["| Núm. medida | Sensor/atuador | Tempo de resposta |", "|---|---|---|"]
-    for n, l in enumerate(linhas, 1):
-        nome = f"{l['dispositivo']} - {l['acao']}"
-        md.append(f"| {n} | {nome} | {l['tempo_ms']:.0f} ms |")
-    for tipo in ("Sensor", "Atuador"):
-        vals = [l["tempo_ms"] for l in linhas if l["tipo"] == tipo]
-        if vals:
-            md.append(f"| Média | {tipo} | {statistics.mean(vals):.0f} ms |")
-    md.append("")
-    md.append(f"RTT médio do ping: {2 * meia_ida:.0f} ms (n = {len(pings)}). "
-              f"Broker: {args.broker}:{args.porta}. Data: {time.strftime('%d/%m/%Y %H:%M')}.")
     (PASTA_RESULTADOS / "tabela_tempos.md").write_text("\n".join(md), encoding="utf-8")
-
-    print("\n" + "\n".join(md))
     print(f"\nArquivos salvos em {PASTA_RESULTADOS}")
 
     try:

@@ -8,7 +8,7 @@ Autora: **Julia Sydor**. Orientador: **Prof. André Luis de Oliveira**.
 | | |
 |---|---|
 | Vídeo-demonstração | _a publicar_ <!--LINK_YOUTUBE--> |
-| Simulação no Wokwi | _a publicar_ <!--LINK_WOKWI--> |
+| Simulação no Wokwi | https://wokwi.com/projects/481670857769020417 |
 | Artigo | _a publicar_ <!--ARTIGO--> |
 
 ![Arquitetura](docs/diagramas/arquitetura.png)
@@ -94,6 +94,8 @@ Documentação completa (formato das mensagens, sequência e exemplos): [`docs/m
 2. Clique em **▶ Start**. No monitor serial aparecem a conexão ao Wi-Fi `Wokwi-GUEST`, a conexão ao broker e as leituras.
 3. Clique no DHT22 durante a simulação e mova o controle de temperatura acima de 28 °C. O relé liga e o LED acende.
 
+> Deixe a janela do Wokwi **visível** e use **uma só** aba com o projeto. Com a janela coberta ou minimizada, a simulação fica muito lenta e o ESP32 perde a conexão (`sistema/status = offline`). Se o ícone de Wi-Fi aparecer com um X e o monitor serial mostrar só pontos, reinicie a simulação.
+
 ### 4.2 Na placa real
 
 1. Instale a Arduino IDE 2 e o pacote **esp32** da Espressif (Gerenciador de Placas).
@@ -103,7 +105,7 @@ Documentação completa (formato das mensagens, sequência e exemplos): [`docs/m
 
 ### 4.3 Acompanhar e comandar
 
-- **MQTT Explorer** (<https://mqtt-explorer.com>): conecte em `broker.hivemq.com:1883` e observe `mackenzie/jsydor/#`. Para comandar, publique `LIGAR` em `mackenzie/jsydor/ventilador/comando`.
+- **MQTT Explorer** (<https://mqtt-explorer.com>): em **Advanced**, troque a assinatura `#` por `mackenzie/jsydor/#` (o HiveMQ público recusa `#`) e conecte em `broker.hivemq.com:1883`. Para comandar, publique `LIGAR` em `mackenzie/jsydor/ventilador/comando`.
 - **Painel web**: abra `painel/index.html` no navegador. Ele se conecta sozinho.
 - **Linha de comando**: veja a seção 5.
 
@@ -125,6 +127,7 @@ python gerar_diagramas.py              # regenera os diagramas de docs/diagramas
 | Arquivo | Função |
 |---|---|
 | `scripts/config.py` | broker, porta e tópicos usados por todos os scripts |
+| `scripts/conexao.py` | conexão com o broker, com espera da confirmação (CONNACK) |
 | `scripts/monitor_mqtt.py` | assina `mackenzie/jsydor/#`, imprime com horário e grava CSV |
 | `scripts/enviar_comando.py` | publica comandos e limite |
 | `scripts/medir_tempos.py` | mede os tempos de resposta (seção 6) |

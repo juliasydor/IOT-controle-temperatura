@@ -31,12 +31,14 @@ import json
 import queue
 import statistics
 import sys
+import threading
 import time
 import uuid
 from pathlib import Path
 
 import paho.mqtt.client as mqtt
 
+from conexao import conectar
 from config import BROKER, PORTA, PREFIXO, topicos
 
 PASTA_RESULTADOS = Path(__file__).resolve().parent.parent / "resultados"
@@ -50,11 +52,12 @@ class Medidor:
         self.cliente = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2,
                                    client_id=f"medidor-{uuid.uuid4().hex[:8]}")
         self.cliente.on_message = self._on_message
-        self.cliente.connect(broker, porta, keepalive=30)
-        self.cliente.loop_start()
-        for nome in ("estado", "pong", "leitura", "status"):
-            self.cliente.subscribe(self.t[nome], qos=0)
-        time.sleep(1.0)  # aguarda as assinaturas serem confirmadas
+        assinado = threading.Event()
+        self.cliente.on_subscribe = lambda *_: assinado.set()
+        conectar(self.cliente, broker, porta)
+        self.cliente.subscribe([(self.t[nome], 0) for nome in ("estado", "pong", "leitura", "status")])
+        if not assinado.wait(TIMEOUT_S):
+            raise SystemExit("ERRO: o broker não confirmou as assinaturas. Tente de novo.")
 
     def _on_message(self, _cliente, _dados, msg):
         # registra o instante de chegada o mais cedo possível

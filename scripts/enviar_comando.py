@@ -13,6 +13,7 @@ import time
 
 import paho.mqtt.client as mqtt
 
+from conexao import conectar
 from config import BROKER, PORTA, PREFIXO, topicos
 
 
@@ -29,8 +30,7 @@ def main():
 
     t = topicos(args.prefixo)
     cliente = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
-    cliente.connect(args.broker, args.porta)
-    cliente.loop_start()
+    conectar(cliente, args.broker, args.porta)
     if args.comando:
         cliente.publish(t["comando"], args.comando).wait_for_publish()
         print(f"Publicado '{args.comando}' em {t['comando']}")

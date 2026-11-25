@@ -17,9 +17,11 @@ from pathlib import Path
 
 import paho.mqtt.client as mqtt
 
+from conexao import conectar
 from config import BROKER, PORTA, PREFIXO
 
 PASTA_RESULTADOS = Path(__file__).resolve().parent.parent / "resultados"
+AVISO_S = 20
 
 
 def main():
@@ -36,13 +38,17 @@ def main():
     log = csv.writer(arquivo)
     log.writerow(["data_hora", "segundos", "topico", "mensagem"])
     inicio = time.time()
+    ultima_ao_vivo = 0.0
 
     def on_connect(cliente, _dados, _flags, codigo, _props):
         print(f"Conectado a {args.broker}:{args.porta} (código {codigo}). Assinando {args.prefixo}/#\n")
         cliente.subscribe(f"{args.prefixo}/#")
 
     def on_message(_cliente, _dados, msg):
+        nonlocal ultima_ao_vivo
         agora = time.time()
+        if not msg.retain:
+            ultima_ao_vivo = agora
         texto = msg.payload.decode(errors="replace")
         retida = " (retida)" if msg.retain else ""
         print(f"{datetime.now():%H:%M:%S.%f}"[:-3] + f"  {msg.topic:<45} {texto}{retida}")
@@ -53,11 +59,15 @@ def main():
     cliente = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
     cliente.on_connect = on_connect
     cliente.on_message = on_message
-    cliente.connect(args.broker, args.porta, keepalive=30)
-    cliente.loop_start()
+    conectar(cliente, args.broker, args.porta)
+    ultima_ao_vivo = time.time()
     try:
         while args.minutos == 0 or time.time() - inicio < args.minutos * 60:
             time.sleep(0.2)
+            if time.time() - ultima_ao_vivo > AVISO_S:
+                print(f"[aviso] nenhuma mensagem há {AVISO_S} s. A simulação do Wokwi está rodando, "
+                      "com a janela visível?", flush=True)
+                ultima_ao_vivo = time.time()
     except KeyboardInterrupt:
         pass
     finally:

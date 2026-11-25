@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Painel Climatização IoT</title>
+<!-- Cliente MQTT para navegador (MQTT sobre WebSocket) e gráfico -->
+<script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root { --bg:#f4f6f8; --card:#fff; --txt:#1d2733; --sub:#5d6b7a; --azul:#2a6fb0; --lar:#d0603a; --verde:#1e8449; --verm:#c0392b; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui, Segoe UI, Roboto, sans-serif; background:var(--bg); color:var(--txt); }
+  header { padding:18px 20px 6px; }
+  h1 { font-size:20px; margin:0; }
+  .sub { color:var(--sub); font-size:13px; margin-top:4px; }
+  main { display:grid; gap:14px; padding:14px 20px 24px; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); max-width:1100px; }
+  .card { background:var(--card); border-radius:10px; padding:14px 16px; box-shadow:0 1px 3px rgba(0,0,0,.08); }
+  .rot { font-size:12px; text-transform:uppercase; letter-spacing:.04em; color:var(--sub); }
+  .val { font-size:34px; font-weight:600; margin-top:4px; font-variant-numeric:tabular-nums; }
+  .wide { grid-column:1 / -1; }
+  .pill { display:inline-block; padding:3px 10px; border-radius:99px; font-size:13px; font-weight:600; color:#fff; background:#8795a1; }
+  .on { background:var(--verde); } .off { background:#8795a1; } .err { background:var(--verm); }
+  button { font:inherit; padding:8px 14px; border-radius:8px; border:1px solid #cdd5dd; background:#fff; cursor:pointer; margin:4px 6px 0 0; }
+  button:hover { border-color:var(--azul); }
+  input { font:inherit; width:90px; padding:7px 8px; border:1px solid #cdd5dd; border-radius:8px; }
+  #log { font-family:Consolas, monospace; font-size:12px; height:170px; overflow:auto; background:#0f1720; color:#cfe3f5; border-radius:8px; padding:8px; white-space:pre; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Monitoramento e Controle de Temperatura (ESP32 + MQTT)</h1>
+  <div class="sub">Broker: <span id="broker"></span> · ESP32: <span id="status" class="pill off">aguardando</span> · Painel: <span id="conn" class="pill off">desconectado</span></div>
+</header>
+<main>
+  <div class="card"><div class="rot">Temperatura</div><div class="val"><span id="temp">--</span> °C</div></div>
+  <div class="card"><div class="rot">Umidade relativa</div><div class="val"><span id="umid">--</span> %</div></div>
+  <div class="card"><div class="rot">Ventilador</div><div class="val"><span id="estado" class="pill off">--</span></div>
+    <div class="sub">Modo: <b id="modo">--</b> · Limite: <b id="lim">--</b> °C</div></div>
+  <div class="card"><div class="rot">Comandos</div>
+    <button onclick="cmd('LIGAR')">Ligar</button><button onclick="cmd('DESLIGAR')">Desligar</button><button onclick="cmd('AUTO')">Automático</button>
+    <div style="margin-top:10px">Limite: <input id="novoLim" type="number" step="0.5" min="10" max="50" value="28"> <button onclick="limite()">Enviar</button></div>
+  </div>
+  <div class="card wide"><div class="rot">Histórico (últimas leituras recebidas)</div><canvas id="graf" height="90"></canvas></div>
+  <div class="card wide"><div class="rot">Mensagens MQTT</div><div id="log"></div></div>
+</main>
+<script>
+  const URL_BROKER = "wss://broker.hivemq.com:8884/mqtt";   // MQTT sobre WebSocket seguro
+  const P = "mackenzie/jsydor/";
+  const T = {
+    temp: P + "clima/temperatura", umid: P + "clima/umidade", lim: P + "clima/limite_atual",
+    estado: P + "ventilador/estado", modo: P + "ventilador/modo", status: P + "sistema/status",
+    comando: P + "ventilador/comando", limite: P + "clima/limite"
+  };
+  document.getElementById("broker").textContent = URL_BROKER;
+  const $ = id => document.getElementById(id);
+
+  const graf = new Chart($("graf"), {
+    type: "line",
+    data: { labels: [], datasets: [
+      { label: "Temperatura (°C)", data: [], borderColor: "#d0603a", tension: .25, pointRadius: 2 },
+      { label: "Limite (°C)", data: [], borderColor: "#8795a1", borderDash: [6, 4], pointRadius: 0 },
+      { label: "Umidade (%)", data: [], borderColor: "#2a6fb0", tension: .25, pointRadius: 0, yAxisID: "y2" }
+    ]},
+    options: { animation: false, scales: { y: { title: { display: true, text: "°C" } },
+      y2: { position: "right", grid: { drawOnChartArea: false }, title: { display: true, text: "%" } } } }
+  });
+  let limiteAtual = null, umidAtual = null;
+
+  function log(txt) {
+    const l = $("log"); const h = new Date().toLocaleTimeString("pt-BR", { hour12: false }) + "." + String(Date.now() % 1000).padStart(3, "0");
+    l.textContent += h + "  " + txt + "\n"; l.scrollTop = l.scrollHeight;
+  }
+
+  const cliente = mqtt.connect(URL_BROKER, { clientId: "painel-" + Math.random().toString(16).slice(2, 10), reconnectPeriod: 3000 });
+  cliente.on("connect", () => { $("conn").textContent = "conectado"; $("conn").className = "pill on"; cliente.subscribe(P + "#"); log("Conectado ao broker, assinando " + P + "#"); });
+  cliente.on("close", () => { $("conn").textContent = "desconectado"; $("conn").className = "pill err"; });
+  cliente.on("message", (topico, payload) => {
+    const m = payload.toString();
+    if (!topico.includes("/diagnostico/")) log(topico.replace(P, "") + " = " + m);
+    if (topico === T.temp) {
+      $("temp").textContent = m;
+      const d = graf.data; d.labels.push(new Date().toLocaleTimeString("pt-BR", { hour12: false }));
+      d.datasets[0].data.push(parseFloat(m)); d.datasets[1].data.push(limiteAtual); d.datasets[2].data.push(umidAtual);
+      if (d.labels.length > 60) { d.labels.shift(); d.datasets.forEach(s => s.data.shift()); }
+      graf.update();
+    } else if (topico === T.umid) { $("umid").textContent = m; umidAtual = parseFloat(m); }
+    else if (topico === T.lim) { $("lim").textContent = m; limiteAtual = parseFloat(m); }
+    else if (topico === T.modo) { $("modo").textContent = m; }
+    else if (topico === T.estado) { $("estado").textContent = m; $("estado").className = "pill " + (m === "LIGADO" ? "on" : "off"); }
+    else if (topico === T.status) { $("status").textContent = m; $("status").className = "pill " + (m === "online" ? "on" : "err"); }
+  });
+
+  function cmd(c) { cliente.publish(T.comando, c); log(">> comando = " + c); }
+  function limite() {
+    const v = parseFloat($("novoLim").value);
+    if (isNaN(v) || v < 10 || v > 50) { log("Limite deve estar entre 10 e 50 °C"); return; }
+    cliente.publish(T.limite, v.toFixed(1)); log(">> limite = " + v.toFixed(1));
+  }
+</script>
+</body>
+</html>
